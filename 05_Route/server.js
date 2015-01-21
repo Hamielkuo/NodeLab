@@ -7,9 +7,10 @@ function start(route, handle) {
 		console.log("Rqeuest received");
 		var pathname=url.parse(request.url).pathname;
 		console.log("Request for " +pathname+" received.");
-		route(handle, pathname);
+		
 		response.writeHead(200,{"Content-Type":"text/plain"});
-		response.write("Hello world");
+		 var content = route(handle, pathname)
+		response.write(content);
 		response.end();
 	}
 	http.createServer(onRequest).listen(8888);
