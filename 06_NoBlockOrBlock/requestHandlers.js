@@ -3,8 +3,8 @@ var exec = require("child_process").exec;
 function start(response) {
     console.log("Request handler 'start' was called.");
     exec("dir", function(error, stdout, stderr) {
-        response.writeHead(404, {
-            "Content-type": "text/plain;"
+        response.writeHead(200, {
+            "Content-type": "text/html;charset=utf-8"
         });
         console.log(stdout);
         response.write(stdout);
