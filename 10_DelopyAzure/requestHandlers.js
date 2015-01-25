@@ -1,57 +1,95 @@
 var querystring = require("querystring"),
     fs = require("fs"),
     formidable = require("formidable");
+var multiparty = require('multiparty');
+var stream = require('stream')
+var azure = require("azure");
+var accessKey = "tsnfha5B6JYUj28o7neR/C9nULLfxp+FslNpLlpUcixkr6Vb225K/03HQSmAO5B1wHc4Ep0RtQMq8nwppxWZ3A==";
+var storageAccount = "hamielnodedata";
+var containerName = "mycontainer";
+var blobService = azure.createBlobService(storageAccount, accessKey);
+blobService.createContainerIfNotExists(containerName, function(error, result, response) {
+    if (!error) {
+        // Container exists and allows 
+        // anonymous read access to blob 
+        // content and metadata within this container
+    }
+});
 
 function start(response) {
-  console.log("Request handler 'start' was called.");
+    console.log("Request handler 'start' was called.");
 
-  var body = '<html>'+
-    '<head>'+
-    '<meta http-equiv="Content-Type" content="text/html; '+
-    'charset=UTF-8" />'+
-    '</head>'+
-    '<body>'+
-    '<form action="/upload" enctype="multipart/form-data" '+
-    'method="post">'+
-    '<input type="file" name="upload" multiple="multiple">'+
-    '<input type="submit" value="Upload file" />'+
-    '</form>'+
-    '</body>'+
-    '</html>';
+    var body = '<html>' +
+        '<head>' +
+        '<meta http-equiv="Content-Type" content="text/html; ' +
+        'charset=UTF-8" />' +
+        '</head>' +
+        '<body>' +
+        '<form action="/upload" enctype="multipart/form-data" ' +
+        'method="post">' +
+        '<input type="file" name="upload" multiple="multiple">' +
+        '<input type="submit" value="Upload file" />' +
+        '</form>' +
+        '</body>' +
+        '</html>';
 
-    response.writeHead(200, {"Content-Type": "text/html"});
+    response.writeHead(200, {
+        "Content-Type": "text/html"
+    });
     response.write(body);
     response.end();
 }
 
-function upload(response, request) {
-  console.log("Request handler 'upload' was called.");
+function upload(res, req) {
+    console.log("Request handler 'upload' was called.");
 
-  var form = new formidable.IncomingForm();
-  console.log("about to parse");
-  form.parse(request, function(error, fields, files) {
-    console.log("parsing done");
-    fs.renameSync(files.upload.path, "test.jpg");
-    response.writeHead(200, {"Content-Type": "text/html"});
-    response.write("received image:<br/>");
-    response.write("<img src='/show' />");
-    response.end();
-  });
+    console.log("about to parse");
+    var form = new multiparty.Form();
+
+    form.on('part', function(part) {
+        if (part.filename) {
+
+            var size = part.byteCount - part.byteOffset;
+            var name = part.filename;
+
+            blobService.createBlockBlobFromStream(containerName, "myblob", part, size, function(error) {
+                if (error) {
+                    res.send(' Blob create: error ');
+                }
+            });
+        } else {
+            form.handlePart(part);
+        }
+    });
+    form.parse(req);
+    res.writeHead(200, {
+        "Content-Type": "text/html"
+    });
+    res.write("received image:<br/>");
+    res.write("<img src='/show' />");
+    res.end();
+
 }
 
-function show(response) {
-  console.log("Request handler 'show' was called.");
-  fs.readFile("test.jpg", "binary", function(error, file) {
-    if(error) {
-      response.writeHead(500, {"Content-Type": "text/plain"});
-      response.write(error + "\n");
-      response.end();
-    } else {
-      response.writeHead(200, {"Content-Type": "image/png"});
-      response.write(file, "binary");
-      response.end();
-    }
-  });
+function show(res) {
+    console.log("Request handler 'show' was called.");
+    // var a= blobService.getBlob(containerName, 'myblob').pipe(fs.createWriteStream('test.jpg'));
+    // console.log(a);
+    var a= blobService.getBlobToStream(containerName, "myblob", res, function(error, result, response) {
+        if (!error) {
+            // // blob retrieved
+// res.writeHead(200, {
+//     "Content-Type": "image/jpg"
+// });
+// console.log(result);
+// res.write(fs, "binary");
+// res.end();
+
+            res.writeHead(200, {'Content-Type': 'image/png'});
+            res.end();
+        }
+    });
+
 }
 
 exports.start = start;
